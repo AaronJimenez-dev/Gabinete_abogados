@@ -12,14 +12,7 @@ public class Juicio {
         Anulado: se ha anulado el juicio
         FInalizado: tiene fecha de finalizacion
     */
-    private Caso caso;
 
-    public Juicio(LocalDate fechaInicio, LocalDate fechaFin, String estado, Caso caso) {
-        this.fechaInicio = fechaInicio;
-        this.fechaFin = fechaFin;
-        this.estado = estado;
-        this.caso = caso;
-    }
     public Juicio(LocalDate fechaInicio, LocalDate fechaFin, String estado) {
         this.fechaInicio = fechaInicio;
         this.fechaFin = fechaFin;
@@ -66,19 +59,10 @@ public class Juicio {
         this.estado = estado;
     }
 
-    public Caso getCaso() {
-        return caso;
-    }
-
-    public void setCaso(Caso caso) {
-        this.caso = caso;
-    }
-
     @Override
     public String toString() {
         return "Fecha de inicio = " + fechaInicio +
                 ", fecha de fin = " + fechaFin +
-                ", estado = " + estado +
-                ", caso = " + caso;
+                ", estado = " + estado;
     }
 }

@@ -1,6 +1,7 @@
 package Modelo;
 
 import java.util.ArrayList;
+import java.util.NoSuchElementException;
 
 public class Cliente{
     private Persona persona;
@@ -26,14 +27,6 @@ public class Cliente{
         this.persona = persona;
     }
 
-    public ArrayList<Caso> getCasos() {
-        return casos;
-    }
-
-    public void setCasos(ArrayList<Caso> casos) {
-        this.casos = casos;
-    }
-
     public int getTelefono() {
         return telefono;
     }
@@ -50,17 +43,29 @@ public class Cliente{
         this.correo = correo;
     }
 
+    public ArrayList<Caso> getCasos() {
+        return casos;
+    }
+
+    public void setCasos(ArrayList<Caso> casos) {
+        this.casos = casos;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append(this.persona.toString() +
                 "\nTelefono = " + getTelefono() +
                 "\nCorreo = '" + getCorreo());
-        if (casos != null) {
-            sb.append("\nCasos: ");
-            for (Caso caso : casos) {
-                sb.append(caso.getNumExpediente() + "\n");
+        try {
+            if (!casos.isEmpty()) {
+                sb.append("\nCasos: ");
+                for (Caso caso : casos) {
+                    sb.append(caso.getNumExpediente() + "\n");
+                }
             }
+        }catch (Exception e){
+            return sb.toString();
         }
         return sb.toString();
     }

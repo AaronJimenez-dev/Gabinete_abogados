@@ -15,10 +15,15 @@ public class ClienteDAO {
     private static String plantilla;
     private static PreparedStatement ps;
     private static PersonaDAO personaDAO;
+    private static CasoDAO casoDAO;
 
     public ClienteDAO(Connection con, PersonaDAO personaDAO) {
         ClienteDAO.con = con;
         ClienteDAO.personaDAO = personaDAO;
+    }
+
+    public void setCasoDAO(CasoDAO casoDAO) {
+        ClienteDAO.casoDAO = casoDAO;
     }
 
     public ArrayList<Cliente> getClientes() throws SQLException {
@@ -46,6 +51,23 @@ public class ClienteDAO {
         }
         return cliente;
     }
+    public Cliente verCasoCliente(Cliente cliente) throws SQLException {
+        ArrayList<Caso> casos = new ArrayList<>();
+        plantilla = "select num_expediente from caso where cliente_dni = ?";
+        ps = con.prepareStatement(plantilla);
+        ps.setString(1, cliente.getPersona().getDni());
+        ResultSet rsCasos = ps.executeQuery();
+        while (rsCasos.next()){
+            casos.add(casoDAO.verCaso(rsCasos.getInt("num_expediente")));
+        }
+        try {
+            if (!casos.isEmpty())
+                cliente.setCasos(casos);
+        }catch (Exception e){
+            return cliente;
+        }
+        return cliente;
+    }
     public int insertarCliente(Cliente c) throws SQLException {
         plantilla = "insert into cliente values(?,?,?)";
         ps = con.prepareStatement(plantilla);
@@ -60,8 +82,20 @@ public class ClienteDAO {
         ps.setString(1, c.getPersona().getDni());
         return  ps.executeUpdate();
     }
-    //BORRAR LA DE ABAJO MAS ADELANTE
-    public void eliminarCaso(Cliente cliente, Caso caso) {
-        cliente.getCasos().remove(caso);
+    public int modificarCliente(Cliente c) throws SQLException {
+        if (personaDAO.modificarPersona(c.getPersona()) > 0) {
+            plantilla = "update cliente set num_tlfn = ?, correo = ? where dni = ?";
+            ps = con.prepareStatement(plantilla);
+            ps.setInt(1, c.getTelefono());
+            ps.setString(2, c.getCorreo());
+            ps.setString(3, c.getPersona().getDni());
+            return ps.executeUpdate();
+        }else {
+            plantilla = "rollback";
+            ps = con.prepareStatement(plantilla);
+            ps.executeUpdate();
+            return 0;
+        }
     }
+
 }

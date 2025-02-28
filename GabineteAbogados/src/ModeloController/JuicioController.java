@@ -68,7 +68,6 @@ public class JuicioController {
 
                 }else {//Si tiene fecha de finalizacion se cambia es estado automaticamente a finalizado.
                     LocalDate fechaFin = validarFecha("finalizacion", juicio.getFechaInicio());
-                    juicio.setFechaFin(fechaFin);
                     juicio.setEstado(calcularEstado(""));
                     System.out.println("Muchas gracias, ahora el estado del juicio es: " + juicio.getEstado());
                 }

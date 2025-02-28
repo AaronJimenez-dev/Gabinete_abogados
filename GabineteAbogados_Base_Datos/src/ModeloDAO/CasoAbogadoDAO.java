@@ -1,11 +1,5 @@
 package ModeloDAO;
 
-import Modelo.Abogado;
-import Modelo.Caso;
-import Modelo.CasoAbogado;
-
-import java.util.ArrayList;
-
 public class CasoAbogadoDAO {
     /*
 

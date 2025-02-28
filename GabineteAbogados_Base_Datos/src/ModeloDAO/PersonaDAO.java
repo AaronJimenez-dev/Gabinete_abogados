@@ -58,4 +58,13 @@ public class PersonaDAO {
         ps.setString(1, p.getDni());
         ps.executeUpdate();
     }
+    public int modificarPersona(Persona p) throws SQLException {
+        plantilla = "update persona set nombre = ?, apellido = ?, direccion = ? where dni = ?";
+        ps = con.prepareStatement(plantilla);
+        ps.setString(1, p.getNombre());
+        ps.setString(2, p.getApellido());
+        ps.setString(3, p.getDireccion());
+        ps.setString(4, p.getDni());
+        return  ps.executeUpdate();
+    }
 }

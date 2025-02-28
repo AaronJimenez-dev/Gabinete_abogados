@@ -1,5 +1,6 @@
 package ModeloController;
 
+import Modelo.Caso;
 import Modelo.Cliente;
 import Modelo.Persona;
 import ModeloDAO.ClienteDAO;
@@ -11,16 +12,27 @@ import java.util.Scanner;
 public class ClienteController {
     private PersonaController personaController;
     private ClienteDAO clienteDAO;
+    private CasoController casoController;
 
     public ClienteController(PersonaController personaController, ClienteDAO clienteDAO) {
         this.personaController = personaController;
         this.clienteDAO = clienteDAO;
     }
 
+    public void setCasoController(CasoController casoController) {
+        this.casoController = casoController;
+    }
+
     public void verCliente() {
         Cliente cliente = conseguirCliente();
-        if (cliente != null)
+        if (cliente != null) {
+            try {
+                cliente = clienteDAO.verCasoCliente(cliente);
+            } catch (SQLException e) {
+                System.out.println("Ha ocurrido un error en la base de datos." + e.getMessage());
+            }
             System.out.println(cliente.toString());
+        }
     }
     public Cliente conseguirCliente() {
         String dni = personaController.validar("DNI", "^[0-9]{8}[A-Z]");
@@ -46,64 +58,51 @@ public class ClienteController {
             }
         }
     }
-    public void modificarCliente(String queHacer) {
-        try {
-            ArrayList<Cliente> clientes = clienteDAO.getClientes();
-            System.out.println("Digame el dni del cliente a " + queHacer + ".");
-
-            Cliente clienteBorrado = conseguirCliente();
-            if (clienteBorrado != null) {
-                int size = eliminarCliente(clienteBorrado);
-
-                if (queHacer.equals("eliminar")) {
-                    if (size > 0) {
-                        System.out.println("Cliente eliminado");
-                        personaController.eliminarPersona(clienteBorrado.getPersona());
-                    }else{
-                        System.out.println("No se ha podido eliminar el cliente");
-                    }
-
-                } else if (queHacer.equals("editar")) {
-                    if(size > 0) {
-                        System.out.println("Digame la informacion del nuevo cliente a " + queHacer + ".");
-                        size = editarCliente(clienteBorrado);
-
-                        if (size > 0) //Si el tamaño de clientes recupera el tamaño original se ha modificado correctamente.
-                            System.out.println("El cliente se ha editado correctamente");
-                        else {
-                            System.out.println("El cliente no se ha podido editar");
-                            clienteDAO.insertarCliente(clienteBorrado);
-                        }
-                    }else
-                        System.out.println("No se ha podido continuar.");
-                }
-            }
-        }catch (SQLException e){
-            System.out.println("Ha ocurrido un error en la base de datos.\n" + e.getMessage());
-        }
+    public void modificarCliente() {
+        System.out.println("Digame el dni del cliente a modificar.");
+        Cliente cliente = conseguirCliente();
+        if (cliente != null) {
+            int size = editarCliente(cliente);
+            if (size > 0) //Si el tamaño de clientes recupera el tamaño original se ha modificado correctamente.
+                System.out.println("El cliente se ha editado correctamente");
+            else
+                System.out.println("El cliente no se ha podido editar");
+        }else
+            System.out.println("No se ha podido continuar.");
     }
-    private int editarCliente(Cliente clienteBorrado) {
+    private int editarCliente(Cliente cliente) {
         int size = 0;
         try {
-            Cliente cliente = new Cliente(personaController.modificarPersona(clienteBorrado.getPersona()));
+            cliente.setPersona(personaController.modificarPersona(cliente.getPersona()));
             cliente.setTelefono(validarTelefono());
             cliente.setCorreo(validarCorreo());
-            cliente.setCasos(clienteBorrado.getCasos());
-            size = clienteDAO.insertarCliente(cliente);
+            size = clienteDAO.modificarCliente(cliente);
         }catch (SQLException e) {
             System.out.println("Ha ocurrido un error en la base de datos\n" + e.getMessage());
         }
         return size;
     }
-    public int eliminarCliente(Cliente cliente) {
+    public void eliminarCliente() {
+        System.out.println("Digame el dni del cliente a modificar.");
+        Cliente cliente = conseguirCliente();
         int size = 0;
+
         try {
+            for (Caso caso : clienteDAO.verCasoCliente(cliente).getCasos()) {
+                casoController.eliminacionCosasCaso(caso);
+            }
             size = clienteDAO.eliminarClientes(cliente);
             personaController.eliminarPersona(cliente.getPersona());
         }catch (SQLException e){
             System.out.println("Ha ocurrido un error en la base de datos\n" + e.getMessage());
         }
-        return size;
+
+        if (size > 0) {
+            System.out.println("Cliente eliminado");
+            personaController.eliminarPersona(cliente.getPersona());
+        }else{
+            System.out.println("No se ha podido eliminar el cliente");
+        }
     }
     public void verTodos(){
         try {

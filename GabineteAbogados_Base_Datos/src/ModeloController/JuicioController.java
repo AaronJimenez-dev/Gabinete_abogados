@@ -6,6 +6,7 @@ import Modelo.Juicio;
 import ModeloDAO.CasoDAO;
 import ModeloDAO.JuicioDAO;
 
+import java.sql.SQLException;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -28,30 +29,35 @@ public class JuicioController {
     }
 
     public Juicio validarJuicio(Caso caso) throws DateTimeException {
-        Juicio juicio;
-        LocalDate fechaInicio = validarFecha("inicio", LocalDate.now());
-        String tieneFecha = tieneFecha();
-        if (tieneFecha.equalsIgnoreCase("no")) {
-            String estado = calcularEstado(tieneFecha);
-            juicio = new Juicio(fechaInicio, estado);
+        try {
+            Juicio juicio;
+            LocalDate fechaInicio = validarFecha("inicio", LocalDate.now());
+            String tieneFecha = tieneFecha();
+            if (tieneFecha.equalsIgnoreCase("no")) {
+                String estado = calcularEstado("");
+                juicio = new Juicio(fechaInicio, estado);
+            } else {
+                LocalDate fechaFin = validarFecha("finalizacion", fechaInicio);
+                String estado = calcularEstado(fechaFin.toString());
+                juicio = new Juicio(fechaInicio, fechaFin, estado);
+            }
+            //juicio.setId(generarId());
+            juicioDAO.insertarJuicio(juicio);
+            return juicio;
+        }catch (SQLException e){
+            System.out.println("Ha ocurrido un error en la base de datos.\n" + e.getMessage());
+            return null;
         }
-        else {
-            LocalDate fechaFin = validarFecha("finalizacion", fechaInicio);
-            String estado = calcularEstado("");
-            juicio = new Juicio(fechaInicio, fechaFin, estado);
-        }
-        juicio.setCaso(caso);
-        juicio.setId(generarId());
-        juicioDAO.insertarJuicio(juicio);
-        return juicio;
     }
     public void verJuicio() {
         Juicio juicio = conseguirJuicio();
         if (juicio != null)
             System.out.println(juicio.toString());
     }
+    //CAMBIARLO TODO
     public void modificarJuicio(Juicio juicio) {
         Scanner sc = new Scanner(System.in);
+        int modificado = 0;
         if (juicio.getEstado().equals("finalizado"))
             System.out.println("El juicio ya ha finalizado, no puede hacer cambios.");
         else {
@@ -63,29 +69,57 @@ public class JuicioController {
                     String respuesta = sc.nextLine();
                     if (respuesta.equalsIgnoreCase("si")) { //El juicio cambia de estado entre tramite y anulado
                         juicio.setEstado(cambiarEstado(juicio.getEstado()));
-                        System.out.println("Muchas gracias, ahora el estado del juicio es: " + juicio.getEstado());
+                        modificado++;
                     }
 
-                }else {//Si tiene fecha de finalizacion se cambia es estado automaticamente a finalizado.
+                } else {//Si tiene fecha de finalizacion se cambia es estado automaticamente a finalizado.
                     LocalDate fechaFin = validarFecha("finalizacion", juicio.getFechaInicio());
-                    juicio.setEstado(calcularEstado(""));
-                    System.out.println("Muchas gracias, ahora el estado del juicio es: " + juicio.getEstado());
+                    juicio.setFechaFin(fechaFin);
+                    juicio.setEstado(calcularEstado(fechaFin.toString()));
+                    modificado++;
                 }
             }
-            System.out.println("Se ha modificado el juicio sin problemas");
+
+            if (modificado > 0) {
+                int size = 0;
+                try {
+                    size = juicioDAO.modificarJuicio(juicio);
+                    if (size > 0)
+                        System.out.println("Muchas gracias, se ha modificado el juicio sin problemas, ahora el estado del juicio es: " + juicio.getEstado());
+                    else
+                        System.out.println("No se han podido aplicar los cambios.");
+
+                } catch (SQLException e) {
+                    System.out.println("Ha ocurrido un error en la base de datos\n" + e.getMessage());
+                }
+            } else
+                System.out.println("No ha habido cambios");
         }
     }
     public void eliminarJuicio() {
-        Juicio juicio = conseguirJuicio();
-        if (juicio != null) {
-            juicioDAO.eliminarJuicio(juicio);
-            casoController.eliminarTodoDeCaso(juicio.getCaso());
+        int size = 0;
+        try {
+            Juicio juicio = conseguirJuicio();
+            if (juicio != null) {
+                casoController.eliminarTodoDeCaso(casoController.conseguirCasoPorJuicio(juicio.getId()));
+                size = juicioDAO.eliminarJuicio(juicio);
+            }
+        }catch (SQLException e){
+            System.out.println("Ha ocurrido un error en la base de datos\n" + e.getMessage());
         }
+        if(size > 0)
+            System.out.println("Se ha eliminado el juicio sin problemas.");
+        else
+            System.out.println("No se ha podido eliminar el juicio");
     }
     public void verTodos(){
-        ArrayList<Juicio> juicios = juicioDAO.getJuicios();
-        for (Juicio juicio : juicios)
-            System.out.println(juicio.getId());
+        try {
+            ArrayList<Juicio> juicios = juicioDAO.getJuicios();
+            for (Juicio juicio : juicios)
+                System.out.println(juicio.getId());
+        }catch (SQLException e){
+            System.out.println("Ha ocurrido un error en la base de datos.\n" + e.getMessage());
+        }
     }
 
     public Juicio conseguirJuicio() {
@@ -99,6 +133,9 @@ public class JuicioController {
             return juicio;
         }catch (InputMismatchException e){
             System.out.println("Debe escribir un numero.");
+            return null;
+        }catch (SQLException e) {
+            System.out.println("Ha ocurrido un error en la base de datos.\n" + e.getMessage());
             return null;
         }
     }
@@ -140,14 +177,16 @@ public class JuicioController {
         }while(yes);
         return fecha;
     }
-    private String calcularEstado(String fechaFin) {
-        String estado;
-        if (fechaFin.isEmpty())
-            estado = "finalizado";
-        else
-            estado = "tramite";
+    private String calcularEstado(String fecha) {
+        String estado = "tramite";
+        if (!fecha.isEmpty()){
+            LocalDate fechaFin = LocalDate.parse(fecha, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            if (fechaFin.isBefore(LocalDate.now()))
+                estado = "finalizado";
+        }
         return estado;
     }
+    /*
     private int generarId() {
         ArrayList<Juicio> juicios = juicioDAO.getJuicios();
         int id;
@@ -158,6 +197,7 @@ public class JuicioController {
         }
         return id;
     }
+     */
     public void queJuicioModificar(){
         Juicio juicio = conseguirJuicio();
         if (juicio != null)

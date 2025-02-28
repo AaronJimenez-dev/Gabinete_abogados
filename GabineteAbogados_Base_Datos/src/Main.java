@@ -16,8 +16,6 @@ public class Main {
     public static AbogadoController abogadoController;
     public static CasoDAO casoDAO;
     public static CasoController casoController;
-    //public static CasoAbogadoDAO casoAbogadoDAO;
-    //public static CasoAbogadoController casoAbogadoController;
     public static JuicioDAO juicioDAO;
     public static JuicioController juicioController;
     public static String[] objetos = new String[5];
@@ -49,18 +47,19 @@ public class Main {
     public static void declararVariables() {
         personaDAO = new PersonaDAO(con);
         clienteDAO = new ClienteDAO(con, personaDAO);
-        abogadoDAO = new AbogadoDAO(con, personaDAO);
-        casoDAO = new CasoDAO(con);
-        //casoAbogadoDAO = new CasoAbogadoDAO(con);
         juicioDAO = new JuicioDAO(con);
+        abogadoDAO = new AbogadoDAO(con, personaDAO);
+        casoDAO = new CasoDAO(con, clienteDAO, juicioDAO, personaDAO, abogadoDAO);
+        clienteDAO.setCasoDAO(casoDAO);
+        abogadoDAO.setCasoDAO(casoDAO);
         juicioController = new JuicioController(juicioDAO, null);
         personaController = new PersonaController(personaDAO, clienteDAO, abogadoDAO);
         clienteController = new ClienteController(personaController,clienteDAO);
         abogadoController = new AbogadoController(personaController,abogadoDAO,null,casoDAO);
         casoController = new CasoController(casoDAO,clienteController,juicioController,abogadoController,abogadoDAO,clienteDAO, juicioDAO);
+        clienteController.setCasoController(casoController);
         abogadoController.setCasoController(casoController);
         juicioController.setCasoController(casoController);
-        //casoAbogadoController = new CasoAbogadoController();
     }
     public static void declararObjetos() {
         objetos[0] = "cliente";
@@ -97,6 +96,13 @@ public class Main {
             opciones2.append("5. Ver todos los ");
             opciones2.append(objetos[queOpcion-1]);
             opciones2.append(".\n");
+            if(queOpcion == 2){
+                opciones2.append("6. Ver todos los casos de un abogado");
+                opciones2.append(".\n");
+            }else if (queOpcion == 3){
+                opciones2.append("6. Ver todos los abogados de un caso");
+                opciones2.append(".\n");
+            }
         }else {
             opciones2.setLength(0);
             opciones2.append("Seleccione una opcion:\n");
@@ -131,8 +137,8 @@ public class Main {
                     switch (segundaOpcion) {
                         case 1 -> clienteController.verCliente();
                         case 2 -> clienteController.insertarCliente();
-                        case 3 -> clienteController.modificarCliente("editar");
-                        case 4 -> clienteController.modificarCliente("eliminar");
+                        case 3 -> clienteController.modificarCliente();
+                        case 4 -> clienteController.eliminarCliente();
                         case 5 -> clienteController.verTodos();
                     }
                     break;
@@ -140,9 +146,10 @@ public class Main {
                     switch (segundaOpcion) {
                         case 1 -> abogadoController.verAbogado();
                         case 2 -> abogadoController.insertarAbogado();
-                        case 3 -> abogadoController.modificarAbogado("editar");
-                        case 4 -> abogadoController.modificarAbogado("eliminar");
+                        case 3 -> abogadoController.modificarAbogado();
+                        case 4 -> abogadoController.eliminarAbogado();
                         case 5 -> abogadoController.verTodos();
+                        case 6 -> abogadoController.verCasosAbogado();
                     }
                     break;
                 case 3:
@@ -152,6 +159,7 @@ public class Main {
                         case 3 -> casoController.modificarCaso();
                         case 4 -> casoController.eliminarCaso();
                         case 5 -> casoController.verTodos();
+                        case 6 -> casoController.verAbogadosCaso();
                     }
                     break;
                 case 4:
@@ -184,5 +192,4 @@ public class Main {
         System.out.println("¿Desea hacer más operaciones?");
         return sc.nextLine().equalsIgnoreCase("si");
     }
-    //CLIENTE Y ABOGADO FUNCIONA PERFECTO
 }

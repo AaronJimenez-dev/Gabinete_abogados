@@ -12,7 +12,6 @@ import ModeloDAO.JuicioDAO;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.InputMismatchException;
-import java.util.NoSuchElementException;
 import java.util.Scanner;
 
 public class CasoController {
@@ -57,16 +56,32 @@ public class CasoController {
         }catch (InputMismatchException e){
             System.out.println("Debe escribir un numero.");
             return null;
+        }catch (SQLException e) {
+            System.out.println("Ha ocurrido un error en la base de datos.\n" + e.getMessage());
+            return null;
+        }
+    }
+    public Caso conseguirCasoPorJuicio(int id) {
+        try{
+            Caso caso = casoDAO.verCasoPorJuicio(id);
+            return caso;
+        }catch (SQLException e) {
+            System.out.println("Ha ocurrido un error en la base de datos.\n" + e.getMessage());
+            return null;
         }
     }
     public void insertarCaso() {
         if (verificarCrearCaso()) {
             Caso caso = crearCaso();
             if (caso != null) {
-                if (caso == null)
-                    System.out.println("El cliente no puede estar vacio");
-                else
-                    casoDAO.insertarCaso(caso);
+                try{
+                    if(casoDAO.insertarCaso(caso) > 0)
+                        System.out.println("Caso correctamente añadido a la base de datos.");
+                    else
+                        System.out.println("El caso no se pudo añadir a la base de datos.");
+                }catch (SQLException e) {
+                    System.out.println("Ha ocurrido un error en la base de datos\n" + e.getMessage());
+                }
             }
         }else
             System.out.println("Sin clientes no puede existir ningun caso.");
@@ -74,6 +89,8 @@ public class CasoController {
     public void modificarCaso() {
         Scanner sc = new Scanner(System.in);
         Caso caso = conseguirCaso();
+        int modificado = 0;
+
         if (caso != null){
             System.out.println("¿Desea modificar el cliente?");
             String client = sc.nextLine();
@@ -84,36 +101,73 @@ public class CasoController {
                     System.out.println("El cliente no existe.");
                 else
                     caso.setCliente(cliente);
+                modificado++;
             }
 
             System.out.println("¿Desea modificar el juicio?");
             String juici = sc.nextLine();
 
-            if (!juici.equalsIgnoreCase("no")) {//Si se desea modificar el juicio
+            if (juici.equalsIgnoreCase("si")) {//Si se desea modificar el juicio
                 juicioController.modificarJuicio(caso.getJuicio());
+                modificado++;
             }
 
-            System.out.println("Se ha modificado el caso sin problemas");
+            if (modificado > 0) {
+                int size = 0;
+                try {
+                    size = casoDAO.modificarCaso(caso);
+                    if (size > 0)
+                        System.out.println("Se ha modificado el caso sin problemas");
+                    else
+                        System.out.println("No se han podido aplicar los cambios.");
+
+                }catch (SQLException e){
+                    System.out.println("Ha ocurrido un error en la base de datos\n" + e.getMessage());
+                }
+
+            }else
+                System.out.println("No ha habido cambios");
         }
     }
     public void eliminarCaso() {
         Caso caso = conseguirCaso();
-        eliminarTodoDeCaso(caso);
+        eliminacionCosasCaso(caso);
     }
     public void verTodos(){
-        ArrayList<Caso> casos = casoDAO.getCasos();
-        for (Caso caso : casos)
-            System.out.println(caso.getNumExpediente());
+        try {
+            ArrayList<Caso> casos = casoDAO.getCasos();
+            for (Caso caso : casos)
+                System.out.println(caso.getNumExpediente());
+        }catch (SQLException e){
+            System.out.println("Ha ocurrido un error en la base de datos.\n" + e.getMessage());
+        }
     }
 
-    public void eliminarTodoDeCaso(Caso caso){
-        if (caso != null){
-            casoDAO.eliminarCaso(caso);
-            for (Abogado abogado : caso.getAbogados()) {
-                abogadoDAO.eliminarCaso(abogado,caso);
-            }
-            clienteDAO.eliminarCaso(caso.getCliente(),caso);
+    public void eliminacionCosasCaso(Caso caso){
+        eliminarTodoDeCaso(caso);
+        try {
             juicioDAO.eliminarJuicio(caso.getJuicio());
+        }catch (SQLException e) {
+            System.out.println("Ha ocurrido un error en la base de datos\n" + e.getMessage());
+        }
+    }
+    public void eliminarTodoDeCaso(Caso caso){
+        try {
+            int size = 0;
+            if (caso != null) {
+                size = casoDAO.eliminarCaso(caso);
+                try {
+                    for (Abogado abogado : caso.getAbogados()) {
+                        abogadoDAO.eliminarCaso(abogado, caso);
+                    }
+                }catch (Exception e){}
+            }
+            if (size > 0)
+                System.out.println("El caso se ha eliminado correctamente.");
+            else
+                System.out.println("El caso no se ha podido eliminar.");
+        }catch (SQLException e){
+            System.out.println("Ha ocurrido un error en la base de datos\n" + e.getMessage());
         }
     }
     private boolean verificarCrearCaso() {
@@ -129,7 +183,6 @@ public class CasoController {
     }
     public Caso crearCaso(){
         try{
-            ArrayList<Caso> casos = casoDAO.getCasos();
             Caso caso = new Caso();
             System.out.println("El numero de expediente se crea automáticamente");
             System.out.println("Inserte el cliente:");
@@ -140,7 +193,6 @@ public class CasoController {
                 caso.setCliente(cliente);
                 System.out.println("Ahora vamos a crear el juicio para este caso:");
                 caso.setJuicio(validarJuicio(caso));
-                caso.setNumExpediente(generarNumExpediente());
             }
             return caso;
         }catch (InputMismatchException e){
@@ -148,68 +200,90 @@ public class CasoController {
             return null;
         }
     }
+    /*
     private int generarNumExpediente() {
-        ArrayList<Caso> casos = casoDAO.getCasos();
-        int numExpediente;
-        try {
-            numExpediente = casos.getLast().getNumExpediente() + 1;
-        }catch (NoSuchElementException e) {
-            numExpediente = 1;
+        try{
+            ArrayList<Caso> casos = casoDAO.getCasos();
+            int numExpediente;
+            try {
+                numExpediente = casos.getLast().getNumExpediente() + 1;
+            }catch (NoSuchElementException e) {
+                numExpediente = 1;
+            }
+            return numExpediente;
+        }catch (SQLException e){
+            System.out.println("Ha ocurrido un error en la base de datos\n" + e.getMessage());
+            return 0;
         }
-        return numExpediente;
     }
+
+     */
     private Cliente validarCliente(Caso caso, String tipo) {
         Cliente cliente = clienteController.conseguirCliente();
         if (cliente != null) {
             if (tipo.equalsIgnoreCase("modificar"))
                 cambiarCliente(cliente, caso);
-            else {
-                try {
-                    cliente.getCasos().add(caso);
-                }catch (NullPointerException e){
-                    cliente.setCasos(new ArrayList<>());
-                    cliente.getCasos().add(caso);
-                }
-            }
         }
         return cliente;
     }
     private void cambiarCliente(Cliente cliente, Caso caso) {
-        caso.getCliente().getCasos().remove(caso);//borramos al cliente anterior el caso
-        cliente.getCasos().add(caso);//le añadimos al nuevo cliente el caso nuevo
+
     }
     private Juicio validarJuicio(Caso caso){
         return juicioController.validarJuicio(caso);
     }
 
+    public void verAbogadosCaso(){
+        try {
+            ArrayList<Abogado> abogados = casoDAO.verAbogadosCaso(conseguirCaso());
+            for (Abogado abogado : abogados){
+                System.out.println(abogado.toString());
+            }
+        }catch (SQLException e){
+            System.out.println("Ha ocurrido un error en la base de datos\n" + e.getMessage());
+        }catch (NullPointerException e){
+            System.out.println("Todavia no hay ninguna relacion.");
+        }
+    }
     public void anadirAbogado() {
-        Caso caso = conseguirCaso();
-        if (caso != null){
-            System.out.println("Dime que abogado quieres añadir:");
-            Abogado abogado = abogadoController.conseguirAbogado();
-            if (abogado != null){
-                if (casoDAO.buscarAbogado(abogado, caso))
-                    System.out.println("El abogado ya está relacionado al abogado.");
-                else {
-                    casoDAO.anadirAbogado(abogado, caso);
-                    abogadoDAO.anadirCaso(abogado,caso);
+        try {
+            Caso caso = conseguirCaso();
+            if (caso != null) {
+                System.out.println("Dime que abogado quieres añadir:");
+                Abogado abogado = abogadoController.conseguirAbogado();
+                if (abogado != null) {
+                    if (casoDAO.buscarAbogado(abogado, caso))
+                        System.out.println("El abogado ya está relacionado al abogado.");
+                    else {
+                        if(casoDAO.anadirAbogado(abogado, caso) > 0)
+                            System.out.println("El abogado y el caso se han relacionado exitosamente.");
+                        else
+                            System.out.println("No se ha podido relacionar el caso y el abogado.");
+                    }
                 }
             }
+        }catch (SQLException e){
+            System.out.println("Ha ocurrido un error en la base de datos\n" + e.getMessage());
         }
     }
     public void eliminarAbogado(){
-        Caso caso = conseguirCaso();
-        if (caso != null){
-            System.out.println("Dime que abogado quieres eliminar:");
-            Abogado abogado = abogadoController.conseguirAbogado();
-            if (abogado != null){
-                if (casoDAO.buscarAbogado(abogado, caso)) {
-                    casoDAO.eliminarAbogado(abogado, caso);
-                    abogadoDAO.eliminarCaso(abogado,caso);
+        try {
+            Caso caso = conseguirCaso();
+            if (caso != null) {
+                System.out.println("Dime que abogado quieres eliminar:");
+                Abogado abogado = abogadoController.conseguirAbogado();
+                if (abogado != null) {
+                    if (casoDAO.buscarAbogado(abogado, caso)) {
+                        if(casoDAO.eliminarAbogado(abogado, caso) > 0)
+                            System.out.println("El abogado se ha dejado de relacionar con el caso exitosamente.");
+                        else
+                            System.out.println("El abogado no se ha podido dejar de relacionar con el caso.");
+                    } else
+                        System.out.println("El abogado no está relacionado al abogado");
                 }
-                else
-                    System.out.println("El abogado no está relacionado al abogado");
             }
+        }catch (SQLException e){
+            System.out.println("Ha ocurrido un error en la base de datos\n" + e.getMessage());
         }
     }
 }

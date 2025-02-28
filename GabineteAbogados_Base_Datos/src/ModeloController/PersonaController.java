@@ -52,6 +52,12 @@ public class PersonaController {
         Persona persona = new Persona(dni, nombre, apellido, direccion);
         return persona;
     }
+    public Persona modificarPersona(Persona persona){
+        persona.setNombre(validar("Nombre", "^[A-Z][a-z]{0,50}"));
+        persona.setApellido(validar("Apellido", "^[A-Z][a-z]{0,50}"));
+        persona.setDireccion(validar("Direccion", "^[A-Z][a-z]+ ([A-Z][a-z]+) [0-9]{0,2}, [0-9][A-Z]"));
+        return persona;
+    }
     public String validar(String quePreguntar, String patron){
         Scanner sc = new Scanner(System.in);
         java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(patron);
@@ -104,25 +110,5 @@ public class PersonaController {
         }catch (SQLException e){
             System.out.println("Ha ocurrido un error con la base de datos.\n" + e.getMessage());
         }
-    }
-    public Persona modificarPersona(Persona persona){
-        Persona personaModificado = validarExistencia(persona.getDni());
-        if (personaModificado == null) {
-            personaModificado = crearPersona(persona.getDni());
-            try {
-                personaDAO.insertarPersona(personaModificado);
-            }catch (SQLException e){
-                System.out.println("Ha ocurrido un problema con la base de datos.\n" + e.getMessage());
-                personaModificado = null;
-            }
-        }
-        else {
-            Persona persona1 = crearPersona(persona.getDni());
-            personaModificado.setNombre(persona1.getNombre());
-            personaModificado.setApellido(persona1.getApellido());
-            personaModificado.setDireccion(persona1.getDireccion());
-            personaModificado.setDni(persona1.getDni());
-        }
-        return personaModificado;
     }
 }
